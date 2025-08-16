@@ -13,15 +13,20 @@
 import { QueryProvider } from '@/providers/QueryProvider';
 import { SharedLayout } from '@/components/animated/PageTransitions';
 import { MasterHydrologyDashboard } from './components/MasterHydrologyDashboard';
+import { useTheme } from './hooks/useTheme';
 import './App.css';
 
 function App() {
+  const { resolvedTheme } = useTheme();
+
   return (
-    <QueryProvider>
-      <SharedLayout>
-        <MasterHydrologyDashboard />
-      </SharedLayout>
-    </QueryProvider>
+    <div className={`min-h-screen bg-background text-foreground transition-colors duration-300 ${resolvedTheme}`}>
+      <QueryProvider>
+        <SharedLayout>
+          <MasterHydrologyDashboard />
+        </SharedLayout>
+      </QueryProvider>
+    </div>
   );
 }
 

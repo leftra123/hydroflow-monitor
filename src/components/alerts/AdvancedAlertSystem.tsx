@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertSeverity, StationDataPackage } from '@/types/sensors';
 import { ALERT_COLORS, getAlertColor } from '@/constants/professionalColors';
 import { EMERGENCY_CONTACTS } from '@/data/stations';
+import { t, formatChileanTime, formatChileanDateTime } from '@/constants/translations';
 
 interface AdvancedAlertSystemProps {
   stationData: StationDataPackage[];
@@ -49,10 +50,10 @@ const generateRealisticAlerts = (stationData: StationDataPackage[]): Alert[] => 
         severity: station.waterLevel.level.value > 3.0 ? AlertSeverity.EMERGENCY : AlertSeverity.CRITICAL,
         currentValue: station.waterLevel.level.value,
         threshold: 2.5,
-        message: `Nivel de agua crítico: ${station.waterLevel.level.value.toFixed(2)}m`,
+        message: `${t('alerts.messages.waterLevelCritical')}: ${station.waterLevel.level.value.toFixed(2)}${t('units.meters')}`,
         timestamp: station.timestamp,
         acknowledged: false,
-        actionRequired: station.waterLevel.level.value > 3.0 
+        actionRequired: station.waterLevel.level.value > 3.0
           ? 'EVACUACIÓN INMEDIATA - Contactar ONEMI y Bomberos'
           : 'Monitoreo intensivo - Preparar medidas preventivas',
         estimatedImpact: station.waterLevel.level.value > 3.0

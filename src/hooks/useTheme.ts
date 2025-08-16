@@ -41,31 +41,43 @@ const getStoredTheme = (): Theme => {
 // Apply theme to document
 const applyTheme = (resolvedTheme: 'light' | 'dark') => {
   if (typeof document === 'undefined') return;
-  
+
+  console.log(`🎨 Aplicando tema: ${resolvedTheme}`);
+
   const root = document.documentElement;
   const body = document.body;
-  
+
   // Remove existing theme classes
   root.classList.remove('light', 'dark');
   body.classList.remove('light', 'dark');
-  
-  // Add new theme class
-  root.classList.add(resolvedTheme);
-  body.classList.add(resolvedTheme);
-  
+
+  // Add new theme class (only add 'dark' class for dark theme, light is default)
+  if (resolvedTheme === 'dark') {
+    root.classList.add('dark');
+    body.classList.add('dark');
+  }
+
   // Set data attribute for CSS selectors
   root.setAttribute(THEME_ATTRIBUTE, resolvedTheme);
-  
+
   // Update meta theme-color for mobile browsers
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) {
     metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0f172a' : '#ffffff');
   }
-  
+
+  // Force re-render of all components by adding a class that triggers CSS transitions
+  body.classList.add('theme-transition');
+  setTimeout(() => {
+    body.classList.remove('theme-transition');
+  }, 300);
+
   // Dispatch custom event for other components
-  window.dispatchEvent(new CustomEvent('theme-changed', { 
-    detail: { theme: resolvedTheme } 
+  window.dispatchEvent(new CustomEvent('theme-changed', {
+    detail: { theme: resolvedTheme }
   }));
+
+  console.log(`✅ Tema aplicado: ${resolvedTheme}, HTML classes:`, root.className);
 };
 
 // Store theme preference
@@ -115,10 +127,22 @@ export const useTheme = () => {
     });
   }, [resolveTheme]);
 
-  // Toggle between light and dark (skips system)
+  // Toggle through all three theme options: light → dark → system → light
   const toggleTheme = useCallback(() => {
-    setTheme(themeState.resolvedTheme === 'light' ? 'dark' : 'light');
-  }, [themeState.resolvedTheme, setTheme]);
+    const currentTheme = themeState.theme;
+    let nextTheme: Theme;
+
+    if (currentTheme === 'light') {
+      nextTheme = 'dark';
+    } else if (currentTheme === 'dark') {
+      nextTheme = 'system';
+    } else {
+      nextTheme = 'light';
+    }
+
+    console.log(`🎨 Cambiando tema: ${currentTheme} → ${nextTheme}`);
+    setTheme(nextTheme);
+  }, [themeState.theme, setTheme]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -179,31 +203,12 @@ export const useTheme = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [setTheme]);
 
-  // Provide theme utilities
+  // Simple theme utilities
   const themeUtils = {
     isDark: themeState.resolvedTheme === 'dark',
     isLight: themeState.resolvedTheme === 'light',
     isSystem: themeState.theme === 'system',
-    systemPrefersDark: themeState.systemTheme === 'dark',
-    
-    // CSS custom properties for dynamic theming
-    getCSSVariables: () => ({
-      '--theme-background': themeState.resolvedTheme === 'dark' ? '#0f172a' : '#ffffff',
-      '--theme-foreground': themeState.resolvedTheme === 'dark' ? '#f8fafc' : '#0f172a',
-      '--theme-primary': themeState.resolvedTheme === 'dark' ? '#3b82f6' : '#1e40af',
-      '--theme-secondary': themeState.resolvedTheme === 'dark' ? '#64748b' : '#475569',
-      '--theme-accent': themeState.resolvedTheme === 'dark' ? '#10b981' : '#059669',
-      '--theme-muted': themeState.resolvedTheme === 'dark' ? '#1e293b' : '#f1f5f9',
-      '--theme-border': themeState.resolvedTheme === 'dark' ? '#334155' : '#e2e8f0',
-    }),
-    
-    // Chart colors that adapt to theme
-    getChartColors: () => ({
-      background: themeState.resolvedTheme === 'dark' ? '#0f172a' : '#ffffff',
-      text: themeState.resolvedTheme === 'dark' ? '#f8fafc' : '#0f172a',
-      grid: themeState.resolvedTheme === 'dark' ? '#334155' : '#e2e8f0',
-      tooltip: themeState.resolvedTheme === 'dark' ? '#1e293b' : '#ffffff',
-    })
+    systemPrefersDark: themeState.systemTheme === 'dark'
   };
 
   return {
@@ -216,46 +221,13 @@ export const useTheme = () => {
   };
 };
 
-// Hook for components that only need to know the current resolved theme
-export const useResolvedTheme = () => {
-  const { resolvedTheme } = useTheme();
-  return resolvedTheme;
-};
-
-// Hook for theme-aware styling
-export const useThemeStyles = () => {
-  const { resolvedTheme, getCSSVariables, getChartColors } = useTheme();
-  
-  return {
-    resolvedTheme,
-    cssVariables: getCSSVariables(),
-    chartColors: getChartColors(),
-    
-    // Common theme-aware class combinations
-    cardClass: resolvedTheme === 'dark' 
-      ? 'bg-slate-800 border-slate-700 text-slate-100' 
-      : 'bg-white border-gray-200 text-gray-900',
-    
-    inputClass: resolvedTheme === 'dark'
-      ? 'bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400'
-      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500',
-    
-    buttonClass: resolvedTheme === 'dark'
-      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-      : 'bg-blue-500 hover:bg-blue-600 text-white',
-  };
-};
-
 // Initialize theme on app startup
 export const initializeTheme = () => {
   if (typeof document === 'undefined') return;
-  
+
   const systemTheme = getSystemTheme();
   const storedTheme = getStoredTheme();
   const resolvedTheme = storedTheme === 'system' ? systemTheme : storedTheme;
-  
+
   applyTheme(resolvedTheme);
 };
-
-// Export for use in main.tsx or App.tsx
-export default useTheme;

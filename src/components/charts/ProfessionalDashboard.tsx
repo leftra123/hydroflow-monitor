@@ -41,15 +41,18 @@ import {
   MapPin
 } from 'lucide-react';
 import { HistoricalDataPoint, AlertSeverity, StationDataPackage } from '@/types/sensors';
-import { 
-  WATER_LEVEL_COLORS, 
-  PRECIPITATION_COLORS, 
-  FLOW_RATE_COLORS, 
+import {
+  WATER_LEVEL_COLORS,
+  PRECIPITATION_COLORS,
+  FLOW_RATE_COLORS,
   TEMPERATURE_COLORS,
   getAlertColor,
   getConductivityColor,
   getPrecipitationColor
 } from '@/constants/professionalColors';
+import { t, formatChileanTime, formatChileanDateTime } from '@/constants/translations';
+import { useSmoothChartData } from '@/hooks/useSmoothDataUpdates';
+import { ConnectionStatusIndicator } from '@/components/ui/ConnectionStatusIndicator';
 
 interface ProfessionalDashboardProps {
   stationData: StationDataPackage[];
@@ -57,6 +60,9 @@ interface ProfessionalDashboardProps {
   onTimeRangeChange: (range: string) => void;
   onStationSelect: (stationId: any) => void;
   onExportData: () => void;
+  isUpdating?: boolean;
+  lastUpdate?: Date;
+  connectionStatus?: 'connected' | 'connecting' | 'disconnected' | 'error';
 }
 
 // --- The following demonstrates potential real sensor data usage ---
@@ -98,25 +104,16 @@ export const ProfessionalDashboard: React.FC<ProfessionalDashboardProps> = ({
   timeRange,
   onTimeRangeChange,
   onStationSelect,
-  onExportData
+  onExportData,
+  isUpdating = false,
+  lastUpdate = new Date(),
+  connectionStatus = 'connected'
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  // Generate realistic data
-  const chartData = useMemo(() => generateRealtimeData(timeRange), [timeRange]);
-
-  // Auto-refresh simulation
-  useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      setLastUpdate(new Date());
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
+  // Generate realistic data with smooth transitions
+  const rawChartData = useMemo(() => generateRealtimeData(timeRange), [timeRange]);
+  const { data: chartData, isTransitioning } = useSmoothChartData(rawChartData, 800);
 
   // Format data for display
   const formattedData = useMemo(() => {
@@ -196,38 +193,42 @@ export const ProfessionalDashboard: React.FC<ProfessionalDashboardProps> = ({
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Waves className="w-6 h-6 text-blue-600" />
-            Dashboard Profesional - Río Claro
+            {t('dashboard.title')}
           </h2>
           <Badge variant={currentStatus?.waterLevel.alertLevel === 'normal' ? 'default' : 'destructive'}>
-            {currentStatus?.waterLevel.alertLevel?.toUpperCase() || 'NORMAL'}
+            {t(`alerts.severity.${currentStatus?.waterLevel.alertLevel || 'normal'}`).toUpperCase()}
           </Badge>
+          <ConnectionStatusIndicator
+            status={connectionStatus}
+            lastUpdate={lastUpdate}
+          />
         </div>
         
         <div className="flex items-center gap-2">
           <Button
-            variant={autoRefresh ? "default" : "outline"}
+            variant={isUpdating ? "default" : "outline"}
             size="sm"
-            onClick={() => setAutoRefresh(!autoRefresh)}
+            disabled={isUpdating}
             className="flex items-center gap-1"
           >
-            <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
-            Auto
+            <RefreshCw className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />
+            {t('navigation.auto')}
           </Button>
-          
+
           <select
             value={timeRange}
             onChange={(e) => onTimeRangeChange(e.target.value)}
-            className="px-3 py-1 border rounded-md text-sm"
+            className="px-3 py-1 border border-input bg-background text-foreground rounded-md text-sm"
           >
-            <option value="1h">1 Hora</option>
-            <option value="24h">24 Horas</option>
-            <option value="7d">7 Días</option>
-            <option value="30d">30 Días</option>
+            <option value="1h">{t('timeRanges.1h')}</option>
+            <option value="24h">{t('timeRanges.24h')}</option>
+            <option value="7d">{t('timeRanges.7d')}</option>
+            <option value="30d">{t('timeRanges.30d')}</option>
           </select>
-          
+
           <Button variant="outline" size="sm" onClick={onExportData}>
             <Download className="w-4 h-4 mr-1" />
-            Exportar
+            {t('navigation.export')}
           </Button>
         </div>
       </div>
@@ -239,18 +240,18 @@ export const ProfessionalDashboard: React.FC<ProfessionalDashboardProps> = ({
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Nivel de Agua</p>
+                  <p className="text-sm text-muted-foreground">{t('parameters.waterLevel')}</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {currentStatus.waterLevel.current.toFixed(3)}m
+                    {currentStatus.waterLevel.current.toFixed(3)}{t('units.meters')}
                   </p>
                   <p className="text-xs flex items-center gap-1">
-                    {currentStatus.waterLevel.trend === 'rising' ? 
-                      <TrendingUp className="w-3 h-3 text-red-500" /> : 
+                    {currentStatus.waterLevel.trend === 'rising' ?
+                      <TrendingUp className="w-3 h-3 text-red-500" /> :
                       currentStatus.waterLevel.trend === 'falling' ?
                       <TrendingDown className="w-3 h-3 text-green-500" /> :
                       <Activity className="w-3 h-3 text-gray-500" />
                     }
-                    {currentStatus.waterLevel.trend}
+                    {t(`statistics.${currentStatus.waterLevel.trend}`)}
                   </p>
                 </div>
                 <Waves className="w-8 h-8 text-blue-500" />
@@ -262,18 +263,18 @@ export const ProfessionalDashboard: React.FC<ProfessionalDashboardProps> = ({
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Caudal</p>
+                  <p className="text-sm text-muted-foreground">{t('parameters.flowRate')}</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {currentStatus.flowRate.current.toFixed(1)} m³/s
+                    {currentStatus.flowRate.current.toFixed(1)} {t('units.cubicMetersPerSecond')}
                   </p>
                   <p className="text-xs flex items-center gap-1">
-                    {currentStatus.flowRate.trend === 'increasing' ? 
-                      <TrendingUp className="w-3 h-3 text-red-500" /> : 
+                    {currentStatus.flowRate.trend === 'increasing' ?
+                      <TrendingUp className="w-3 h-3 text-red-500" /> :
                       currentStatus.flowRate.trend === 'decreasing' ?
                       <TrendingDown className="w-3 h-3 text-green-500" /> :
                       <Activity className="w-3 h-3 text-gray-500" />
                     }
-                    {currentStatus.flowRate.trend}
+                    {t(`statistics.${currentStatus.flowRate.trend}`)}
                   </p>
                 </div>
                 <Activity className="w-8 h-8 text-purple-500" />

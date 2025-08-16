@@ -3,29 +3,31 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light Theme (Default) */
   :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
     --primary: 199 89% 48%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 72% 51%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
     --ring: 199 89% 48%;
     --radius: 0.75rem;
   }
 
+  /* Dark Theme */
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -59,6 +61,12 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Clean theme transitions - only where needed */
+  .theme-transition {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
 }
 
@@ -277,4 +285,77 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* === MEJORAS ESPECÍFICAS PARA SISTEMA DE MONITOREO === */
+
+/* Transiciones mejoradas para tarjetas de métricas */
+.metric-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Animaciones para actualizaciones de datos */
+@keyframes dataUpdate {
+  0% { opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+.updating {
+  animation: dataUpdate 1.5s ease-in-out;
+}
+
+/* Sistema de alarmas mejorado */
+.alarm-active {
+  animation: alarmPulse 2s infinite;
+}
+
+@keyframes alarmPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+/* Indicadores de estado con colores DGA */
+.status-normal {
+  @apply bg-green-500 text-white;
+}
+
+.status-warning {
+  @apply bg-yellow-500 text-white;
+}
+
+.status-critical {
+  @apply bg-red-500 text-white;
+}
+
+.status-emergency {
+  @apply bg-red-700 text-white animate-pulse;
+}
+
+/* Comparación de estaciones */
+.station-comparison {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.comparison-highlight {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Responsive para vista dual de estaciones */
+@media (max-width: 1280px) {
+  .station-detail-card {
+    margin-bottom: 1rem;
+  }
 }

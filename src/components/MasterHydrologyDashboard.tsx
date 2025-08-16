@@ -11,12 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Waves, 
-  Sun, 
-  Moon, 
-  Play, 
-  Pause, 
+import {
+  Waves,
+  Sun,
+  Moon,
+  Monitor,
+  Play,
+  Pause,
   RefreshCw,
   MapPin,
   Calendar,
@@ -45,6 +46,13 @@ import { ProfessionalDashboard } from './charts/ProfessionalDashboard';
 import { STATIONS, THRESHOLD_CONFIGURATIONS, EMERGENCY_CONTACTS } from '@/data/stations';
 import { StationDataPackage, AlertSeverity, DataQuality } from '@/types/sensors';
 import { useTheme } from '@/hooks/useTheme';
+import { WeatherSidebar } from './weather/WeatherSidebar';
+import { useSmoothDataUpdates } from '@/hooks/useSmoothDataUpdates';
+import { t, formatChileanTime } from '@/constants/translations';
+import { AlarmControls } from './alarms/AlarmControls';
+import { StationComparison } from './stations/StationComparison';
+import { StationDetailCard } from './stations/StationDetailCard';
+import { useAlarmSystem } from '@/hooks/useAlarmSystem';
 import { 
   createStationId, 
   createTimestamp,
@@ -261,9 +269,62 @@ export const MasterHydrologyDashboard: React.FC = () => {
   const [showWeatherSidebar, setShowWeatherSidebar] = React.useState(false);
   const [showAlertModal, setShowAlertModal] = React.useState(false);
   const [selectedStation, setSelectedStation] = React.useState(STATIONS[0].id);
+  const [showStationComparison, setShowStationComparison] = React.useState(true);
 
-  // 🎯 Professional station data generation
-  const stationData = useMemo(() => generateRealisticStationData(), []);
+  // Sistema de alarmas
+  const { triggerAlarmBySeverity, isActive: alarmActive, playAlarm } = useAlarmSystem();
+
+  // Detectar anomalías entre estaciones
+  React.useEffect(() => {
+    if (stationData.length >= 2) {
+      const station1 = stationData[0];
+      const station2 = stationData[1];
+
+      // Calcular diferencias porcentuales
+      const waterLevelDiff = Math.abs(
+        (station2.waterLevel.level.value - station1.waterLevel.level.value) /
+        station1.waterLevel.level.value * 100
+      );
+
+      const flowRateDiff = Math.abs(
+        (station2.flowRate.discharge.value - station1.flowRate.discharge.value) /
+        station1.flowRate.discharge.value * 100
+      );
+
+      // Activar alarmas por divergencias críticas
+      if (waterLevelDiff > 30 || flowRateDiff > 30) {
+        playAlarm('anomaly', `Divergencia crítica detectada entre estaciones: ${waterLevelDiff.toFixed(1)}% en nivel del agua`);
+      }
+
+      // Activar alarmas por valores críticos
+      const maxWaterLevel = Math.max(station1.waterLevel.level.value, station2.waterLevel.level.value);
+      const maxFlowRate = Math.max(station1.flowRate.discharge.value, station2.flowRate.discharge.value);
+      const maxTemperature = Math.max(station1.waterQuality.temperature.value, station2.waterQuality.temperature.value);
+
+      if (maxWaterLevel > 3.5 || maxFlowRate > 40) {
+        playAlarm('emergency', 'Condiciones de emergencia detectadas en el río');
+      } else if (maxWaterLevel > 3.0 || maxFlowRate > 30 || maxTemperature > 20) {
+        playAlarm('critical', 'Nivel crítico alcanzado en parámetros del río');
+      } else if (maxWaterLevel > 2.5 || maxFlowRate > 20) {
+        playAlarm('warning', 'Condiciones de precaución en el río');
+      }
+    }
+  }, [triggerAlarmBySeverity, playAlarm]);
+
+
+
+  // 🎯 Smooth data updates without flickering
+  const {
+    data: stationData,
+    isUpdating,
+    lastUpdate,
+    connectionStatus,
+    refresh
+  } = useSmoothDataUpdates(generateRealisticStationData, {
+    updateInterval: 30000, // 30 seconds
+    transitionDuration: 1000, // 1 second smooth transition
+    enableSmoothing: true
+  });
 
   // 🎯 Selección de estación activa
   const activeStation = useMemo(() => {
@@ -352,12 +413,32 @@ export const MasterHydrologyDashboard: React.FC = () => {
     }
   }, [selectors.isDarkMode]);
 
-  // 🎨 Animaciones de entrada simplificadas
+  // 🎨 Animaciones de entrada mejoradas
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.5 }
   };
+
+  const staggerContainer = {
+    initial: { opacity: 0 },
+    animate: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const slideInFromSide = (direction: 'left' | 'right') => ({
+    initial: { opacity: 0, x: direction === 'left' ? -30 : 30 },
+    animate: {
+      opacity: 1,
+      x: 0,
+      transition: { duration: 0.6 }
+    }
+  });
 
   if (!currentData) {
     return (
@@ -461,15 +542,52 @@ export const MasterHydrologyDashboard: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={toggleTheme}
-                className="p-2"
+                onClick={() => {
+                  console.log('🎨 Botón de tema clickeado, tema actual:', theme);
+                  toggleTheme();
+                }}
+                className="flex items-center gap-2 px-3 py-2 border border-border hover:bg-muted"
+                title={`Cambiar tema - Actual: ${theme === 'light' ? 'Claro' : theme === 'dark' ? 'Oscuro' : 'Sistema'}`}
               >
-                {theme === 'dark' ? (
-                  <Sun className="h-4 w-4" />
+                {theme === 'light' ? (
+                  <Sun className="h-4 w-4 text-yellow-500" />
+                ) : theme === 'dark' ? (
+                  <Moon className="h-4 w-4 text-blue-400" />
                 ) : (
-                  <Moon className="h-4 w-4" />
+                  <Monitor className="h-4 w-4 text-gray-500" />
                 )}
+                <span className="text-xs font-medium">
+                  {theme === 'light' ? 'Claro' : theme === 'dark' ? 'Oscuro' : 'Sistema'}
+                </span>
               </Button>
+
+              {/* Controles de alarma compactos */}
+              <div className="flex items-center gap-2 ml-2">
+                <AlarmControls compact />
+
+                {/* Indicador de estado de alarmas */}
+                {alarmActive && (
+                  <Badge variant="destructive" className="animate-pulse">
+                    🚨 ALARMA ACTIVA
+                  </Badge>
+                )}
+              </div>
+
+              {/* Botón de comparación de estaciones */}
+              <Button
+                variant={showStationComparison ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowStationComparison(!showStationComparison)}
+                className="flex items-center gap-2 px-3 py-2 transition-all duration-200"
+                title="Activar/desactivar vista de comparación entre estaciones"
+              >
+                <Activity className="h-4 w-4" />
+                <span className="text-xs font-medium hidden sm:inline">
+                  {showStationComparison ? 'Ocultar Comparación' : 'Mostrar Comparación'}
+                </span>
+              </Button>
+
+
             </div>
           </div>
 
@@ -523,14 +641,67 @@ export const MasterHydrologyDashboard: React.FC = () => {
 
             {/* Professional Dashboard */}
             <TabsContent value="overview" className="space-y-6">
-              <motion.div {...fadeInUp}>
-                <ProfessionalDashboard
-                  stationData={stationData}
-                  timeRange={state.timeRange}
-                  onTimeRangeChange={actions.setTimeRange}
-                  onStationSelect={setSelectedStation}
-                  onExportData={handleExportData}
-                />
+              <motion.div {...fadeInUp} className="space-y-6">
+                {/* Comparación de estaciones - Siempre visible */}
+                {stationData.length >= 2 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                  >
+                    <StationComparison
+                      stationNacimiento={stationData[0]}
+                      stationPuente={stationData[1]}
+                      className="mb-6"
+                    />
+                  </motion.div>
+                )}
+
+                {/* Vista Dual de Estaciones */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="grid grid-cols-1 xl:grid-cols-2 gap-6"
+                >
+                  {stationData.map((station, index) => (
+                    <motion.div
+                      key={station.stationId}
+                      initial={{ opacity: 0, x: index === 0 ? -20 : 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                    >
+                      <StationDetailCard
+                        station={station}
+                        isUpdating={isUpdating}
+                        lastUpdate={lastUpdate}
+                        connectionStatus={connectionStatus}
+                        timeRange={state.timeRange}
+                        onTimeRangeChange={actions.setTimeRange}
+                        onExportData={handleExportData}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+
+                {/* Dashboard Profesional Completo */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                >
+                  <ProfessionalDashboard
+                    stationData={stationData}
+                    timeRange={state.timeRange}
+                    onTimeRangeChange={actions.setTimeRange}
+                    onStationSelect={setSelectedStation}
+                    onExportData={handleExportData}
+                    isUpdating={isUpdating}
+                    lastUpdate={lastUpdate}
+                    connectionStatus={connectionStatus}
+
+                  />
+                </motion.div>
               </motion.div>
             </TabsContent>
 
@@ -590,6 +761,14 @@ export const MasterHydrologyDashboard: React.FC = () => {
             </TabsContent>
           </Tabs>
       </main>
+
+      {/* Weather Sidebar */}
+      <WeatherSidebar
+        isOpen={showWeatherSidebar}
+        onToggle={() => setShowWeatherSidebar(!showWeatherSidebar)}
+      />
+
+
     </div>
   );
 };
