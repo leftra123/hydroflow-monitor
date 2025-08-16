@@ -58,9 +58,14 @@ export interface HydrologyStation {
     readonly dissolvedOxygen: boolean;
     readonly turbidity: boolean;
     readonly precipitation: boolean;
+    readonly conductivity?: boolean; // CRITICAL for volcanic monitoring
   };
   readonly status: HydrologicalStatusType;
   readonly lastUpdate: Timestamp;
+  readonly description?: string;
+  readonly operationalSince?: string;
+  readonly maintenanceSchedule?: string;
+  readonly emergencyContact?: string;
 }
 
 // 📈 Medición Hidrológica - Snapshot Inmutable
